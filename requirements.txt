@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+pytest
+httpx
+opencv-python
+pillow
+PyMuPDF
+python-dateutil
