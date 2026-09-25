@@ -9,3 +9,5 @@ opencv-python
 pillow
 PyMuPDF
 python-dateutil
+paddlepaddle==3.2.2
+paddleocr==3.7.0
