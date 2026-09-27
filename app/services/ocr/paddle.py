@@ -1,3 +1,4 @@
+import cv2
 import logging
 import numpy as np
 from paddleocr import PaddleOCR
@@ -19,7 +20,8 @@ class PaddleOCRProvider(OCRProvider):
 
     def extract_page(self, image: np.ndarray, page_number: int) -> OCRPage:
         try:
-            result = self.engine.predict(image)
+            prepared_image = self._prepare_image(image)
+            result = self.engine.predict(prepared_image)
         except Exception as exc:
             logger.exception("OCR failed for page %s.", page_number)
             raise DocumentProcessingError(
@@ -65,4 +67,22 @@ class PaddleOCRProvider(OCRProvider):
             page_number=page_number,
             lines=lines,
             mean_confidence=mean_confidence,
+        )
+    
+    @staticmethod
+    def _prepare_image(image: np.ndarray) -> np.ndarray:
+        if image is None or image.size == 0:
+            raise DocumentProcessingError("OCR received an empty image.")
+
+        if image.ndim == 2:
+            return cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+        if image.ndim == 3 and image.shape[2] == 4:
+            return cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+
+        if image.ndim == 3 and image.shape[2] == 3:
+            return image
+
+        raise DocumentProcessingError(
+            f"Unsupported image shape for OCR: {image.shape}"
         )

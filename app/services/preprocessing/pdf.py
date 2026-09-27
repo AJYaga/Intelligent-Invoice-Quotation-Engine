@@ -1,12 +1,12 @@
 import cv2
-import fitz
+import pymupdf
 import numpy as np
 from app.core.exceptions import InvalidDocumentError
 from app.services.preprocessing.image import preprocess_image
 
 def render_pdf_pages(file_bytes: bytes) -> list[np.ndarray]:
     try:
-        document = fitz.open(stream=file_bytes, filetype="pdf")
+        document = pymupdf.open(stream=file_bytes, filetype="pdf")
     except Exception as exc:
         raise InvalidDocumentError(
             "Unable to open PDF. The document may be corrupt."
@@ -20,7 +20,7 @@ def render_pdf_pages(file_bytes: bytes) -> list[np.ndarray]:
 
     try:
         for page in document:
-            matrix = fitz.Matrix(2.0, 2.0)
+            matrix = pymupdf.Matrix(2.0, 2.0)
 
             pixmap = page.get_pixmap(
                 matrix=matrix,

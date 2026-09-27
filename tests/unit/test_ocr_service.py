@@ -3,6 +3,7 @@ from app.models.ocr import OCRBox, OCRLine, OCRPage
 from app.models.preprocessing import PreprocessingResult, ProcessedPage
 from app.services.ocr.base import OCRProvider
 from app.services.ocr.service import OCRService
+from app.services.ocr.paddle import PaddleOCRProvider
 
 class FakeOCRProvider(OCRProvider):
     def extract_page(self, image: np.ndarray, page_number: int) -> OCRPage:
@@ -97,3 +98,17 @@ def test_empty_ocr_result():
 
     assert result.full_text == ""
     assert result.mean_confidence == 0.0
+
+def test_prepare_grayscale_image_for_paddle():
+    image = np.zeros((100, 200), dtype=np.uint8)
+
+    prepared = PaddleOCRProvider._prepare_image(image)
+
+    assert prepared.shape == (100, 200, 3)
+
+def test_prepare_bgr_image_keeps_shape():
+    image = np.zeros((100, 200, 3), dtype=np.uint8)
+
+    prepared = PaddleOCRProvider._prepare_image(image)
+
+    assert prepared.shape == (100, 200, 3)

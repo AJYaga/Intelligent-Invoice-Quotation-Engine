@@ -7,7 +7,7 @@ from app.services.preprocessing.image import (
     preprocess_image,
 )
 from app.services.preprocessing.orientation import rotate_image
-import fitz
+import pymupdf
 from app.services.preprocessing.pdf import render_pdf_pages
 
 def create_test_image() -> np.ndarray:
@@ -71,7 +71,7 @@ def test_rotate_90_degrees():
     assert rotated.shape[1] == 100
 
 def create_test_pdf() -> bytes:
-    document = fitz.open()
+    document = pymupdf.open()
 
     page = document.new_page(
         width=595,
