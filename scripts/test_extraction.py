@@ -4,6 +4,7 @@ from app.services.extraction.service import ExtractionService
 from app.services.ocr.paddle import PaddleOCRProvider
 from app.services.ocr.service import OCRService
 from app.services.preprocessing.processor import preprocess_document
+from app.services.validation.service import ValidationService
 
 DOCUMENT_PATH = Path("samples/invoices/sample_invoice.png")
 
@@ -82,6 +83,26 @@ def main():
             f"line_total={item.line_total}, "
             f"confidence={item.confidence}"
         )
+
+    validation = ValidationService().validate(
+        ocr_result=ocr_result,
+        classification=classification,
+        extraction=extraction,
+    )
+
+    print("\n=== VALIDATION ===")
+    print(f"Confidence: {validation.confidence}")
+    print(f"Status: {validation.status.value}")
+
+    if not validation.issues:
+        print("No validation issues.")
+    else:
+        for issue in validation.issues:
+            print(
+                f"{issue.severity.value} | "
+                f"{issue.code} | "
+                f"{issue.message}"
+            )
 
 if __name__ == "__main__":
     main()

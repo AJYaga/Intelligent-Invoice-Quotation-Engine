@@ -163,10 +163,13 @@ class FieldExtractor:
 
         return empty_field()
 
-    def extract_vendor(self, ocr_result: OCRResult) -> ExtractedField:
+    def extract_vendor(
+        self,
+        ocr_result: OCRResult,
+    ) -> ExtractedField:
         labeled = self._extract_party(
             ocr_result,
-            ("vendor", "supplier", "from"),
+            ("vendor", "supplier", "seller", "from"),
         )
 
         if labeled.value is not None:
@@ -180,24 +183,66 @@ class FieldExtractor:
             "total",
             "tax",
             "subtotal",
+            "bill to",
+            "ship to",
         )
 
-        for page in ocr_result.pages:
-            for line in page.lines[:6]:
-                normalized = normalize_text(line.text)
+        if not ocr_result.pages:
+            return empty_field()
 
-                if any(word in normalized for word in excluded):
-                    continue
+        first_page = ocr_result.pages[0]
 
-                if sum(character.isalpha() for character in line.text) < 3:
-                    continue
+        for index, line in enumerate(first_page.lines[:8]):
+            normalized = normalize_text(line.text)
 
-                return ExtractedField(
-                    value=line.text.strip(),
-                    confidence=round(line.confidence * 0.55, 3),
-                    source_text=line.text,
-                    page_number=page.page_number,
+            if any(word in normalized for word in excluded):
+                continue
+
+            if sum(character.isalpha() for character in line.text) < 3:
+                continue
+
+            evidence_score = 0.70
+
+            if index <= 2:
+                evidence_score += 0.10
+
+            if any(
+                token in normalized
+                for token in (
+                    "inc",
+                    "ltd",
+                    "llc",
+                    "corp",
+                    "company",
+                    "co.",
+                    "pvt",
                 )
+            ):
+                evidence_score += 0.10
+
+            if index + 1 < len(first_page.lines):
+                next_text = first_page.lines[index + 1].text
+
+                if any(
+                    character.isdigit()
+                    for character in next_text
+                ):
+                    evidence_score += 0.05
+
+            evidence_score = min(
+                evidence_score,
+                0.95,
+            )
+
+            return ExtractedField(
+                value=line.text.strip(),
+                confidence=round(
+                    line.confidence * evidence_score,
+                    3,
+                ),
+                source_text=line.text,
+                page_number=first_page.page_number,
+            )
 
         return empty_field()
 
