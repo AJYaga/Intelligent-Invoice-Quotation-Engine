@@ -92,3 +92,164 @@ def test_missing_field_is_not_invented():
 
     assert result["document_number"].value is None
     assert result["document_number"].confidence == 0.0
+
+def positioned_line(
+    text: str,
+    x: float,
+    y: float,
+    confidence: float = 0.95,
+) -> OCRLine:
+    return OCRLine(
+        text=text,
+        confidence=confidence,
+        box=OCRBox(
+            points=[
+                [x, y],
+                [x + 100, y],
+                [x + 100, y + 20],
+                [x, y + 20],
+            ]
+        ),
+    )
+
+def test_extract_document_number_below_label():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line("QUOTE #", 300, 100),
+            positioned_line("2034", 300, 130),
+        ])
+    )
+
+    assert result["document_number"].value == "2034"
+
+def test_extract_date_below_label():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line("DATE", 500, 100),
+            positioned_line("2/12/2017", 500, 130),
+        ])
+    )
+
+    assert result["document_date"].value == "2/12/2017"
+
+def test_document_title_is_not_document_number():
+    result = FieldExtractor().extract(
+        make_result([
+            line("INVOICE"),
+        ])
+    )
+
+    assert result["document_number"].value is None
+
+def test_ocr_noisy_quote_number_label():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line("QUOTE 8", 300, 100),
+            positioned_line("2034", 300, 130),
+        ])
+    )
+
+    assert result["document_number"].value == "2034"
+
+def test_extract_total_quote():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line("TOTAL QUOTE", 300, 100),
+            positioned_line("615.65", 500, 100),
+        ])
+    )
+
+    assert result["grand_total"].value == Decimal("615.65")
+
+def test_noisy_quote_label_extracts_value_below():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line("QUOTE 8", 300, 100),
+            positioned_line("2034", 300, 130),
+        ])
+    )
+
+    assert result["document_number"].value == "2034"
+
+def test_line_item_discount_not_summary_discount():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line(
+                "New client discount",
+                50,
+                100,
+            ),
+            positioned_line(
+                "(50.00)",
+                400,
+                100,
+            ),
+        ])
+    )
+
+    assert result["discount"].value is None
+
+def test_quote_number_prefers_same_row_over_date():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line("DATE", 1100, 100),
+            positioned_line("01-05-2014", 1260, 100),
+            positioned_line("QUOTE #", 1080, 140),
+            positioned_line("[123456]", 1270, 140),
+        ])
+    )
+
+    assert result["document_number"].value == "[123456]"
+
+def test_currency_not_taken_from_description_text():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line(
+                "Labor: 5 hours at $75/hr",
+                100,
+                100,
+            ),
+            positioned_line(
+                "TOTAL",
+                500,
+                300,
+            ),
+            positioned_line(
+                "921.56",
+                700,
+                300,
+            ),
+        ])
+    )
+
+    assert result["currency"].value is None
+
+def test_invoice_title_does_not_anchor_document_number():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line("INVOICE", 50, 50),
+            positioned_line("1912 Harvest Lane", 50, 100),
+            positioned_line("INVOICE #", 500, 150),
+            positioned_line("US-001", 700, 150),
+        ])
+    )
+
+    assert result["document_number"].value == "US-001"
+
+def test_extract_sales_tax_amount_to_right():
+    result = FieldExtractor().extract(
+        make_result([
+            positioned_line(
+                "Sales Tax 6.25%",
+                400,
+                100,
+            ),
+            positioned_line(
+                "9.06",
+                700,
+                100,
+            ),
+        ])
+    )
+
+    assert result["tax"].value == Decimal("9.06")

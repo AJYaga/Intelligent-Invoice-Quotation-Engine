@@ -112,8 +112,6 @@ class LineItemExtractor:
 
             required = {
                 "description",
-                "quantity",
-                "unit_price",
                 "line_total",
             }
 
@@ -127,11 +125,9 @@ class LineItemExtractor:
         row: list[OCRLine],
         columns: dict[str, OCRLine],
     ) -> LineItem | None:
-        assigned: dict[str, list[OCRLine]] = {
-            "description": [],
-            "quantity": [],
-            "unit_price": [],
-            "line_total": [],
+        assigned = {
+            name: []
+            for name in columns
         }
 
         ordered_columns = sorted(
@@ -167,22 +163,25 @@ class LineItemExtractor:
 
         description = " ".join(
             line.text
-            for line in assigned["description"]
+            for line in assigned.get(
+                "description",
+                [],
+            )
         ).strip()
 
         if not description:
             return None
 
         quantity = self._parse_column_number(
-            assigned["quantity"]
+            assigned.get("quantity", [])
         )
 
         unit_price = self._parse_column_number(
-            assigned["unit_price"]
+            assigned.get("unit_price", [])
         )
 
         line_total = self._parse_column_number(
-            assigned["line_total"]
+            assigned.get("line_total", [])
         )
 
         if (
@@ -199,7 +198,8 @@ class LineItemExtractor:
         ]
 
         confidence = (
-            sum(confidence_values) / len(confidence_values)
+            sum(confidence_values)
+            / len(confidence_values)
             if confidence_values
             else 0.0
         )

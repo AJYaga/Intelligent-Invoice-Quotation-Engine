@@ -101,3 +101,56 @@ def find_lines_below(
         results,
         key=lambda item: top(item),
     )
+
+def find_value_below(
+    label: OCRLine,
+    lines: list[OCRLine],
+    max_vertical_distance: float = 80.0,
+) -> OCRLine | None:
+    candidates = []
+
+    label_left = left(label)
+    label_right = right(label)
+    label_center = center_x(label)
+
+    for candidate in lines:
+        if candidate is label:
+            continue
+
+        if top(candidate) < bottom(label):
+            continue
+
+        vertical_distance = top(candidate) - bottom(label)
+
+        if vertical_distance > max_vertical_distance:
+            continue
+
+        candidate_center = center_x(candidate)
+
+        horizontally_aligned = (
+            label_left <= candidate_center <= label_right
+            or abs(candidate_center - label_center) <= 60
+        )
+
+        if not horizontally_aligned:
+            continue
+
+        candidates.append(
+            (
+                vertical_distance,
+                abs(candidate_center - label_center),
+                candidate,
+            )
+        )
+
+    if not candidates:
+        return None
+
+    candidates.sort(
+        key=lambda item: (
+            item[0],
+            item[1],
+        )
+    )
+
+    return candidates[0][2]
